@@ -110,7 +110,6 @@ public class MarkovChain {
 			System.out.println("File not found!");
 			e.printStackTrace();
 		} 
-
 	}
 
 	private void writeProb(HashMap<String,Integer> map, String fileName) throws IOException{
