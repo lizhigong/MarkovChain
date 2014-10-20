@@ -79,7 +79,6 @@ public class MyQuickSort2 {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
 		int[] needSort = {2,5,3,6,6,4,4,8,6,2,3,1,0,8,5,4,3,2};
 		String[] needStr = new String[needSort.length];
 		for (int i = 0, len = needSort.length; i < len; i++){

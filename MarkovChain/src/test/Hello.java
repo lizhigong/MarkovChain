@@ -13,9 +13,7 @@ public class Hello {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		System.out.println("Hello, world.");
-		System.out.println(Integer.MAX_VALUE);
-
+		System.out.println(1.0D * 2 / 3);
 	}
 
 }

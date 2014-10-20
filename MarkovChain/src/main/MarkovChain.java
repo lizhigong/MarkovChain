@@ -15,7 +15,10 @@
 package main;
 import java.io.*;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
+import myUtil.*;
 /**
  * @author Li Zhigong
  *
@@ -23,7 +26,8 @@ import java.util.HashMap;
 public class MarkovChain {
 	private String trainingSet;		//Each line contains a password/key/entry.
 	private int order = 1;		// By default, it is 1-order markov chain.
-
+	
+	private String splitToken = "---";
 	private HashMap<String,Integer> map; 	// Stores the probabilities like p[a|b] and p[xe|a].
 	private HashMap<String,Integer> begin;	// Stores the probabilities like p[a|x0].
 
@@ -53,9 +57,9 @@ public class MarkovChain {
 	 * Training the markov method using trainingSet.
 	 * @param traningSet
 	 */
-	public void training(String traningSet){
+	public void training(String trainingSet){
 		this.trainingSet = trainingSet;
-
+		
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(trainingSet));
 			
@@ -78,17 +82,23 @@ public class MarkovChain {
 					/* Deal with the rest letters. */
 					for (int i = 1; i < len; i++){
 						key = genKey(charArray[i], charArray[i-1]);
-						addtoMap("",map);
+						addtoMap(key,map);
+
+						/* Total number of charArray[i-1], used to calculate the probabilities. */
+						addtoMap(charArray[i-1] + "*",map);	
 					}
 					
-					/* Deal with end symbol*/
-					addtoMap("(" + charArray[len-1] + ")",map);
-					
-					/* Sort and Write */
-
+					/* Deal with last character and the end symbol*/
+//					addtoMap(genKey(charArray[len-1],charArray[len-2]),map); 	// The last character isn't counted in (Xi¡¤).
+					addtoMap("(" + charArray[len-1] + ")",map); 				// Add End Symbol.
+					addtoMap("end*",map);
+					line = br.readLine();
 				}
 				
 				br.close();
+
+				writeBeginProb(begin,"beginProb.txt");
+				writeProb(map,"Prob.txt");
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
@@ -98,7 +108,61 @@ public class MarkovChain {
 		} 
 
 	}
+	
+	private void writeProb(HashMap<String,Integer> map, String fileName) throws IOException{
+		int size = map.size();
+		String[] keys = new String[size];
+		int[] frequencies= new int[size];
+		
+		exportHashmap(map,keys,frequencies);
+		
+		BufferedWriter bw = new BufferedWriter(new FileWriter(fileName));
+		int total;
+		for (int i = size - 1; i >= 0; i--){
+			if (keys[i].endsWith("*")) 		// Ignore the entries ended with '*', because it is the total number.
+				continue;
 
+			total = (keys[i].length() == 3) ? map.get("end*") : map.get(keys[i].charAt(2) + "*"); 
+			
+			bw.write(keys[i] + splitToken + (1.0D * frequencies[i] / total));
+			bw.newLine();
+		}
+		
+		bw.close();
+	}
+	
+	/**
+	 * Write the <String,Integer> pairs into files,
+	 * and change Integer(frequencies) to Double(probabilities).
+	 * @param map
+	 * @param fileName
+	 * @throws IOException
+	 */
+	private void writeBeginProb(HashMap<String,Integer> map, String fileName) throws IOException{
+		int size = map.size();
+		String[] keys = new String[size];
+		int[] frequencies= new int[size];
+
+		exportHashmap(map,keys,frequencies);
+
+		int total = 0;
+		for (int x: frequencies){
+			total += x;
+		}
+		
+		BufferedWriter bw = new BufferedWriter(new FileWriter(fileName));
+		
+		for (int i = size - 1; i >= 0; i--){
+			if (keys[i].endsWith("*")) 		// Ignore the entries ended with '*', because it is the total number.
+				continue;
+
+			bw.write(keys[i] + splitToken + (1.0D * frequencies[i] / total));
+			bw.newLine();
+		}
+		
+		bw.close();
+	}
+	
 	/**
 	 * Auxiliary function which adds 1 to map.get(key). 
 	 */
@@ -129,12 +193,45 @@ public class MarkovChain {
 		return str1 + "()";
 
 	}
+
+	/**
+	 * export a hashmap<String,Integer> to str[] and num[].
+	 * And sort them.
+	 * It seems that I have to initiate the two strings before using this method.
+	 * Because if I initiate the two strings in this method, java will throw a NULL Pointer Exception.
+	 * @param hashmap
+	 * @param str
+	 * @param num
+	 */
+	public static void exportHashmap(HashMap<String,Integer> hashmap, String[] str, int[] num){
+		int size = hashmap.size();
+		
+		if (size == 0){
+			System.out.println("Hashmap is empty!!");
+			return;
+		}
+		
+		int k = 0;
+		Iterator iter = hashmap.entrySet().iterator();
+		while(iter.hasNext()){
+			Map.Entry<String, Integer> entry = (Map.Entry<String, Integer>) iter.next();
+			str[k] = entry.getKey();
+			num[k++] = entry.getValue();
+		}
+		MyQuickSort2.sort(str, num);
+	}
+	
 	public static void main (String[] args){
 		MarkovChain mc = new MarkovChain();
-		// Test addtoMap: WORK.
+
+		/* Test addtoMap: WORK */
 //		HashMap<String,Integer> map = new HashMap<String,Integer>();
 //		mc.addtoMap("hello", map);
 //		mc.addtoMap("hello", map);
 //		System.out.println(map.get("hello"));
+		
+		/* Test training. */
+
+		mc.training("TestTraining.txt");
 	}
 }
