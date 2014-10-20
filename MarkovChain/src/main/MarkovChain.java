@@ -4,9 +4,9 @@
  * Markov gussing method.
  * (First order).
  * 
- * p[a|b]=0.1 is represented by a(b) -- 0.1
- * p[a|x0]=0.1 is represented by a() -- 0.1, x0 is the start symbol. 
- * p[xe|a]=0.1 is represented by (a) -- 0.1, xe is the end symbol.
+ * p[X2|X1]=0.1 is represented by X1(X2) -- 0.1
+ * p[X1|X0]=0.1 is represented by (X1) -- 0.1, X0 is the start symbol. 
+ * p[Xe|X6]=0.1 is represented by X6() -- 0.1, Xe is the end symbol.
  * 
  * Running order:
  * 		1. training
@@ -32,7 +32,7 @@ public class MarkovChain {
 	private HashMap<String,Integer> begin;	// Stores the probabilities like p[a|x0].
 
 	private String beginProb = null;
-	private String midProb = null;
+	private String prob = null;
 	/* Constructor */
 	
 	public MarkovChain(){
@@ -81,7 +81,7 @@ public class MarkovChain {
 
 					/* Deal with the rest letters. */
 					for (int i = 1; i < len; i++){
-						key = genKey(charArray[i], charArray[i-1]);
+						key = genKey(charArray[i-1], charArray[i]);
 						addtoMap(key,map);
 
 						/* Total number of charArray[i-1], used to calculate the probabilities. */
@@ -89,8 +89,7 @@ public class MarkovChain {
 					}
 					
 					/* Deal with last character and the end symbol*/
-//					addtoMap(genKey(charArray[len-1],charArray[len-2]),map); 	// The last character isn't counted in (Xi¡¤).
-					addtoMap("(" + charArray[len-1] + ")",map); 				// Add End Symbol.
+					addtoMap(charArray[len-1] + "()",map); 				// Add End Symbol.
 					addtoMap("end*",map);
 					line = br.readLine();
 				}
@@ -99,6 +98,11 @@ public class MarkovChain {
 
 				writeBeginProb(begin,"beginProb.txt");
 				writeProb(map,"Prob.txt");
+
+				beginProb = "beginProb.txt";
+				prob = "Prob.txt";
+				
+				/* Sort the files */
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
@@ -108,7 +112,7 @@ public class MarkovChain {
 		} 
 
 	}
-	
+
 	private void writeProb(HashMap<String,Integer> map, String fileName) throws IOException{
 		int size = map.size();
 		String[] keys = new String[size];
@@ -122,7 +126,7 @@ public class MarkovChain {
 			if (keys[i].endsWith("*")) 		// Ignore the entries ended with '*', because it is the total number.
 				continue;
 
-			total = (keys[i].length() == 3) ? map.get("end*") : map.get(keys[i].charAt(2) + "*"); 
+			total = (keys[i].length() == 3) ? map.get("end*") : map.get(keys[i].charAt(0) + "*"); 
 			
 			bw.write(keys[i] + splitToken + (1.0D * frequencies[i] / total));
 			bw.newLine();
@@ -153,9 +157,6 @@ public class MarkovChain {
 		BufferedWriter bw = new BufferedWriter(new FileWriter(fileName));
 		
 		for (int i = size - 1; i >= 0; i--){
-			if (keys[i].endsWith("*")) 		// Ignore the entries ended with '*', because it is the total number.
-				continue;
-
 			bw.write(keys[i] + splitToken + (1.0D * frequencies[i] / total));
 			bw.newLine();
 		}
@@ -175,23 +176,22 @@ public class MarkovChain {
 	}
 	
 	/**
-	 * Representation of p[str1|str2]
-	 * @param str1
-	 * @param str2
+	 * Representation of p[X2|X1]
+	 * @param X1
+	 * @param X2
 	 * @return
 	 */
-	private String genKey(char str1, char str2){
-		return str1 + "(" + str2 + ")";
+	private String genKey(char X1, char X2){
+		return X1 + "(" + X2 + ")";
 	}
 	
 	/**
-	 * Representation of p[str1|x0]
-	 * @param str1
+	 * Representation of p[X1|X0]
+	 * @param X1 
 	 * @return
 	 */
-	private String genKey(char str1){
-		return str1 + "()";
-
+	private String genKey(char X1){
+		return "(" + X1 + ")";
 	}
 
 	/**
@@ -218,7 +218,8 @@ public class MarkovChain {
 			str[k] = entry.getKey();
 			num[k++] = entry.getValue();
 		}
-		MyQuickSort2.sort(str, num);
+
+//		MyQuickSort2.sort(str, num);
 	}
 	
 	public static void main (String[] args){
