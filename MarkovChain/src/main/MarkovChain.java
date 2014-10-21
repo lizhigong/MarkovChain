@@ -10,21 +10,18 @@
  * 
  * Running order:
  * 		1. training
- * 		2.
+ * 		2. guessing
  */
 package main;
 import java.io.*;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-import myUtil.*;
+import java.util.*;
+import java.sql.*;
 /**
  * @author Li Zhigong
  *
  */
 public class MarkovChain {
-	private String trainingSet;		//Each line contains a password/key/entry.
+	private String trainingSet = null;		//Each line contains a password/key/entry.
 	private int order = 1;		// By default, it is 1-order markov chain.
 	
 	private String splitToken = "---";
@@ -112,6 +109,142 @@ public class MarkovChain {
 		} 
 	}
 
+	/**
+	 * Write the guesses into file.
+	 * 
+	 * The guessing method is based on threshold search algorithm.
+	 * In the i'th iteration, it generates passwords with probabilities
+	 * in a range (p_i,t_i], which starts with p_1 = 1/n, t_1 = 1.
+	 * After i'th iteration, we have p_{i+1} = p_i / max (2, 1.5n/m).
+	 * That is, when m < 0.75n, we halve the probability threshold.
+	 * 
+	 * We may overshoot and generate more than n passwords, but are very
+	 * unlikely to generate over 2n guesses.
+	 * 
+	 * @param guessnumbers, the number we want to guess.
+	 */
+	public void guess(long guessnumbers) throws Exception{
+		/* Check, because we need training first. */ 
+		check();
+		double pi = 1 / guessnumbers;	// Threshold, lower bound.
+		double ti = 1;					// Threshold, upper bound. 
+		
+		long m = 0;		// Current guess numbers
+		HashMap<String, Double> map = new HashMap<String, Double>(10000);		// The distribution of P[X_2| X_1]. for 1-order Markov chain, the # of entries is less than 10000
+		
+		/* Initiate map */
+		BufferedReader br = new BufferedReader(new FileReader(prob));
+		String line = br.readLine();
+		String[] split;
+		
+		while (line != null){
+			if (line.length() > 0){
+				split = line.split(splitToken);
+				/* Check each line of the file. */
+				if (split.length != 2){		// This should not happen. If this happens, there must be something wrong.
+					System.out.println("[WRONG]: " + line);
+					System.exit(0);
+				}
+				
+				map.put(split[0], Double.parseDouble(split[1]));
+			}
+			line = br.readLine();
+		}
+		br.close();
+
+		/* Initiate priority queue. */
+		PriorityQueue<MarkovEntry> initQue= new PriorityQueue<MarkovEntry>(500000);
+		br = new BufferedReader(new FileReader(beginProb));
+		line = br.readLine();
+		
+		while (line != null){
+			if (line.length() > 0){
+				split = line.split(splitToken);
+				/* Check each line of the file. */
+				if (split.length != 2){		// This should not happen. If this happens, there must be something wrong.
+					System.out.println("[WRONG]: " + line);
+					System.exit(0);
+				}
+				
+				MarkovEntry me = new MarkovEntry();
+				me.str = split[0].charAt(1)+"";
+				me.prob = Double.parseDouble(split[1]);
+				initQue.add(me);
+			}
+			line = br.readLine();
+		}
+		
+		br.close();
+
+		while (m < guessnumbers){
+			/* Deal with the priority queue. */
+			PriorityQueue<MarkovEntry> que = new PriorityQueue<MarkovEntry>(initQue);
+			
+			/* Generate pi and ti */
+			ti = pi;
+			pi = Double.max(2.0, 1.5D * guessnumbers / m);
+		}
+		
+	}
+
+	/**
+	 * guess $guessnumbers times and compare with the passwords in $tableName.
+	 * @param guessnumbers
+	 * @param tableName
+	 */
+	public void guess(long guessnumbers, String tableName){
+		check();	
+	}
+	
+	/**
+	 * Guess $guessnumbers times and compare with passwords in $file.
+	 * @param guessnumbers
+	 * @param file
+	 */
+	public void guess(long guessnumbers, File file){
+		check();	
+		
+	}
+	
+	/**
+	 * Before guess, check the conditions.
+	 * 0: OK
+	 * 1: no training set.
+	 * 2: haven't training.
+	 * @return
+	 */
+	private void check(){
+		System.out.println("Checking....");
+
+		int status = 0;
+		if (trainingSet == null)
+			status = 1;
+			
+		if (beginProb == null || prob == null)
+			status = 2;
+		
+		switch(status){
+		case 1:
+			System.out.println("No training set.");
+			System.exit(0);
+			break;
+		case 2:
+			System.out.println("Need training.");
+			System.exit(0);
+			break;
+		default:
+			System.out.println("Checking Pass.");
+		}
+
+	}
+	
+	
+	/**
+	 * Write the frequencies of the keys into files, changing the frequencies to probabilities. 
+	 * @param map
+	 * @param fileName
+	 * @throws IOException
+	 */
 	private void writeProb(HashMap<String,Integer> map, String fileName) throws IOException{
 		int size = map.size();
 		String[] keys = new String[size];
@@ -195,7 +328,6 @@ public class MarkovChain {
 
 	/**
 	 * export a hashmap<String,Integer> to str[] and num[].
-	 * And sort them.
 	 * It seems that I have to initiate the two strings before using this method.
 	 * Because if I initiate the two strings in this method, java will throw a NULL Pointer Exception.
 	 * @param hashmap
@@ -217,8 +349,6 @@ public class MarkovChain {
 			str[k] = entry.getKey();
 			num[k++] = entry.getValue();
 		}
-
-//		MyQuickSort2.sort(str, num);
 	}
 	
 	public static void main (String[] args){
