@@ -30,6 +30,11 @@ public class MarkovChain {
 
 	private String beginProb = null;
 	private String prob = null;
+	private String[] printableChar = {"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z",
+									  "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
+									  "1","2","3","4","5","6","7","8","9","0","-","=","!","@","#","$","%","^","&","*","(",")","_","+",
+									  "~","`","[","]","{","}",":","\'",";","\"",",",".","/","<",">","?","\\","|"," ",""}; // the null string at the end is used to find the end.
+	
 	/* Constructor */
 	
 	public MarkovChain(){
@@ -126,12 +131,11 @@ public class MarkovChain {
 	public void guess(long guessnumbers) throws Exception{
 		/* Check, because we need training first. */ 
 		check();
-		double pi = 1 / guessnumbers;	// Threshold, lower bound.
-		double ti = 1;					// Threshold, upper bound. 
-		
+		double p_i = 1 / guessnumbers;	// Threshold, lower bound.
+		double t_i = 1;					// Threshold, upper bound. 
+		BufferedWriter bw = new BufferedWriter(new FileWriter("guess.txt"));
 		long m = 0;		// Current guess numbers
 		HashMap<String, Double> map = new HashMap<String, Double>(10000);		// The distribution of P[X_2| X_1]. for 1-order Markov chain, the # of entries is less than 10000
-		
 		/* Initiate map */
 		BufferedReader br = new BufferedReader(new FileReader(prob));
 		String line = br.readLine();
@@ -152,8 +156,8 @@ public class MarkovChain {
 		}
 		br.close();
 
-		/* Initiate priority queue. */
-		PriorityQueue<MarkovEntry> initQue= new PriorityQueue<MarkovEntry>(500000);
+		/* Initiate priority queue which contains the probabilities of the first characters */
+		PriorityQueue<MarkovEntry> initQue= new PriorityQueue<MarkovEntry>(100);		// 100 is enough, there are only 95 printable characters.
 		br = new BufferedReader(new FileReader(beginProb));
 		line = br.readLine();
 		
@@ -167,8 +171,11 @@ public class MarkovChain {
 				}
 				
 				MarkovEntry me = new MarkovEntry();
+				
+				/* According to the format of the files, the characters are in parentheses, so we only need the charAt(1)*/
 				me.str = split[0].charAt(1)+"";
 				me.prob = Double.parseDouble(split[1]);
+
 				initQue.add(me);
 			}
 			line = br.readLine();
@@ -176,15 +183,59 @@ public class MarkovChain {
 		
 		br.close();
 
+		/* Generating guesses by iteration */
 		while (m < guessnumbers){
+			int iterCount = 1;
+			System.out.println("Iteration " + iterCount);
 			/* Deal with the priority queue. */
-			PriorityQueue<MarkovEntry> que = new PriorityQueue<MarkovEntry>(initQue);
+			PriorityQueue<MarkovEntry> que = new PriorityQueue<MarkovEntry>(initQue);		// The queue is initiated with the initQue, which contains the beginning characters.
 			
+			/* 1. Pop from priority queue, check the end symbol.
+			 * 2. If it is the end symbol, then it is a guess. Repeat 1. Else go 3.
+			 * 3. If it is not the end symbol, generate keys whose length is current_len+1, if their probabilities are in the iteration scope, put them into the queue. 
+			 */
+			while (!que.isEmpty()){
+				MarkovEntry me = que.poll();
+				if (me.isEnd){		// This is the guess.
+					if (me.prob <= t_i && me.str.length() >=4){
+						m++;
+						bw.write(me.str);
+
+						bw.newLine();
+
+						if (m > guessnumbers){
+							System.out.println("Finish.");
+							bw.close();
+							System.exit(0);
+						}
+					}
+				}
+				else{		// Generate other keys with length + 1
+					/* Get the next character and their probability from hashmap. */
+					char last = me.str.charAt(me.str.length()-1);	// Last character.
+					for (String c : printableChar){		// E.g. last character is 'a', find a(*) in the hashmap.
+						String key = last + "(" + c + ")";
+						Double p = map.get(key);
+						if (p != null){
+							p *= me.prob;
+							/* Test if they are in the scope: (p_i,t_i] */
+							if (p > p_i)
+								que.add(c.equals("") ? new MarkovEntry(me.str + c, p, true) : new MarkovEntry(me.str + c, p));
+						}
+						else
+							continue;
+					}
+				}
+				
+				iterCount++;
+			}		// End of !que.isEmpty().
+				
 			/* Generate pi and ti */
-			ti = pi;
-			pi = Double.max(2.0, 1.5D * guessnumbers / m);
-		}
-		
+			t_i = p_i;
+			p_i = Double.max(2.0, 1.5D * guessnumbers / m);
+		} // WHILE m < GUESSNUMBERS
+		System.out.println("guessnumbers: " + m);
+		bw.close();
 	}
 
 	/**
@@ -237,7 +288,6 @@ public class MarkovChain {
 		}
 
 	}
-	
 	
 	/**
 	 * Write the frequencies of the keys into files, changing the frequencies to probabilities. 
@@ -351,7 +401,7 @@ public class MarkovChain {
 		}
 	}
 	
-	public static void main (String[] args){
+	public static void main (String[] args) throws Exception{
 		MarkovChain mc = new MarkovChain();
 
 		/* Test addtoMap: WORK */
@@ -361,7 +411,13 @@ public class MarkovChain {
 //		System.out.println(map.get("hello"));
 		
 		/* Test training. */
-
 		mc.training("TestTraining.txt");
+		
+		/* Test printableChar */
+//		for (String x : mc.printableChar)
+//			System.out.println(x);
+		
+		/* Test guessing */
+		mc.guess(1000);
 	}
 }

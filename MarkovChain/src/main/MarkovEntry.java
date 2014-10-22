@@ -11,10 +11,23 @@ import java.util.PriorityQueue;
  *
  */
 public class MarkovEntry implements Comparable<MarkovEntry>{
-	
 	public double prob;
 	public String str;
 	public boolean isEnd = false;
+	
+	public MarkovEntry(){}
+	
+	public MarkovEntry(String str, double p){
+		this.str = str;
+		this.prob = p;
+	}
+	
+	public MarkovEntry(String str, double p, boolean isEnd){
+		this.str = str;
+		this.prob = p;
+		this.isEnd = isEnd;
+	}
+	
 	/**
 	 * @param args
 	 */
