@@ -1,5 +1,5 @@
 /**
- * 
+ * An entry, which contains a password and its probability.
  */
 package main;
 
@@ -11,11 +11,11 @@ import java.util.PriorityQueue;
  *
  */
 public class MarkovEntry implements Comparable<MarkovEntry>{
-	public double prob;
-	public String str;
-	public boolean isEnd = false;
+	public double prob;		// Probability
+	public String str;		// Password, may be not a complete one.
+	public boolean isEnd = false;		// Identify if it is a complete one.
 	
-	public MarkovEntry(){}
+	public MarkovEntry(){}		//Empty Constructor.
 	
 	public MarkovEntry(String str, double p){
 		this.str = str;
@@ -38,15 +38,14 @@ public class MarkovEntry implements Comparable<MarkovEntry>{
 		MarkovEntry b = new MarkovEntry();
 		MarkovEntry c = new MarkovEntry();
 			
-		b.prob = 2;
-		c.prob = 3;
-		a.prob = 4.55;
+		b.prob = Math.random() * 10;
+		c.prob = Math.random() * 10;
+		a.prob = Math.random() * 10;
 
 		queue.add(b);
 		queue.add(a);
 		queue.add(c);
 	
-		
 		PriorityQueue<MarkovEntry> queue2 = new PriorityQueue<MarkovEntry>(queue);
 		
 		System.out.println(queue2.poll().prob);

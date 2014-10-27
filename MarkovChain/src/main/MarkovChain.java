@@ -33,7 +33,8 @@ public class MarkovChain {
 	private String[] printableChar = {"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z",
 									  "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
 									  "1","2","3","4","5","6","7","8","9","0","-","=","!","@","#","$","%","^","&","*","(",")","_","+",
-									  "~","`","[","]","{","}",":","\'",";","\"",",",".","/","<",">","?","\\","|"," ",""}; // the null string at the end is used to find the end.
+									  "~","`","[","]","{","}",":","\'",";","\"",",",".","/","<",">","?","\\","|"," ",""}; 
+									  // the null string at the end is used to represent the end symbol.
 	
 	/* Constructor */
 	
@@ -42,13 +43,9 @@ public class MarkovChain {
 		map = new HashMap<String,Integer>();
 	}
 	
-	public MarkovChain(int order){
+	public MarkovChain(int order){		// Now, order does not work.
 		super();
 		this.order = order;
-	}
-
-	private void initiate(){
-		
 	}
 
 	public void training(){
@@ -141,7 +138,7 @@ public class MarkovChain {
 		String line = br.readLine();
 		String[] split;
 		
-		while (line != null){
+		while ((line = br.readLine()) != null)
 			if (line.length() > 0){
 				split = line.split(splitToken);
 				/* Check each line of the file. */
@@ -152,8 +149,7 @@ public class MarkovChain {
 				
 				map.put(split[0], Double.parseDouble(split[1]));
 			}
-			line = br.readLine();
-		}
+		
 		br.close();
 
 		/* Initiate priority queue which contains the probabilities of the first characters */
@@ -183,9 +179,9 @@ public class MarkovChain {
 		
 		br.close();
 
+		int iterCount = 1;
 		/* Generating guesses by iteration */
 		while (m < guessnumbers){
-			int iterCount = 1;
 			System.out.println("Iteration " + iterCount);
 			/* Deal with the priority queue. */
 			PriorityQueue<MarkovEntry> que = new PriorityQueue<MarkovEntry>(initQue);		// The queue is initiated with the initQue, which contains the beginning characters.
@@ -222,15 +218,13 @@ public class MarkovChain {
 							if (p > p_i)
 								que.add(c.equals("") ? new MarkovEntry(me.str + c, p, true) : new MarkovEntry(me.str + c, p));
 						}
-						else
-							continue;
 					}
 				}
 				
-				iterCount++;
 			}		// End of !que.isEmpty().
 				
 			/* Generate pi and ti */
+			iterCount++;
 			t_i = p_i;
 			p_i = Double.max(2.0, 1.5D * guessnumbers / m);
 		} // WHILE m < GUESSNUMBERS
@@ -243,18 +237,185 @@ public class MarkovChain {
 	 * @param guessnumbers
 	 * @param tableName
 	 */
-	public void guess(long guessnumbers, String tableName){
+	public void guess(long guessnumbers, String tableName) throws Exception{
 		check();	
+		/* Store the passwords in the hashmap. For now, there is no better solution. */
+		
+		/* Generate passwords and test in the hashmap. */
+		double p_i = 1 / guessnumbers;
+		double t_i = 1;
+		
+		long m = 0;
+		long hit = 0;
+		
+		/* Initiate map. */
+		HashMap<String, Double> map = new HashMap<String, Double>(10000);
+		BufferedReader br = new BufferedReader(new FileReader(prob));
+		String line;
+		String[] split;
+		
+		while ((line = br.readLine()) != null)
+			if (line.length() > 0){
+				split = line.split(splitToken);
+				map.put(split[0], Double.parseDouble(split[1]));
+			}
+	
+		br.close();
+		
+		/* Initiate intitial queue. */
+		PriorityQueue<MarkovEntry> initQue = new PriorityQueue<MarkovEntry>(100);
+		br = new BufferedReader(new FileReader(beginProb));
+		
+		while ((line = br.readLine()) != null)
+			if (line.length() > 0){
+				split = line.split(splitToken);
+				
+				MarkovEntry me = new MarkovEntry();
+				me.str = split[0].charAt(1) + "";
+				me.prob = Double.parseDouble(split[1]);
+				initQue.add(me);
+			}
+			
+		br.close();
+		
+		/* Genrating guesses by iteration. */
+		int iterCount = 1;
+		while (m < guessnumbers){
+			System.out.println("Iteration: " + iterCount);
+			/* Deal with the priority queue. */
+			PriorityQueue<MarkovEntry> que = new PriorityQueue<MarkovEntry>(initQue);
+			
+			while (!que.isEmpty()){
+				MarkovEntry me = que.poll();
+				if (me.isEnd){
+					if (me.prob <= t_i && me.str.length() >= 4){
+						m++;
+						
+						/* Check it in the hash map. Code here. */
+						if (true){
+							hit += 2;
+						}
+						
+						if (m > guessnumbers){
+							System.out.println("Finnish.");
+							System.exit(0);
+						}
+					}
+				}
+				else{
+					char last = me.str.charAt(me.str.length()-1);
+					for (String c : printableChar){
+						String key = last + "(" + c + ")";
+						Double p = map.get(key);
+						
+						if (p != null){
+							p *= me.prob;
+							if (p > p_i)
+								que.add(c.equals("") ? new MarkovEntry(me.str + c, p, true): new MarkovEntry(me.str + c, p));
+						}
+					}
+
+				}
+			}
+			iterCount++;
+			t_i = p_i;
+			p_i = Double.max(2.0, 1.5D * guessnumbers / m);
+		}
+		System.out.println("guessnumbers: " + m);
+
 	}
+
 	
 	/**
 	 * Guess $guessnumbers times and compare with passwords in $file.
 	 * @param guessnumbers
 	 * @param file
 	 */
-	public void guess(long guessnumbers, File file){
+	public void guess(long guessnumbers, File file) throws Exception{
 		check();	
+		/* Store the passwords in the hashmap. For now, there is no better solution. */
 		
+		/* Generate passwords and test in the hashmap. */
+		double p_i = 1 / guessnumbers;
+		double t_i = 1;
+		
+		long m = 0;
+		long hit = 0;
+		
+		/* Initiate map. */
+		HashMap<String, Double> map = new HashMap<String, Double>(10000);
+		BufferedReader br = new BufferedReader(new FileReader(prob));
+		String line;
+		String[] split;
+		
+		while ((line = br.readLine()) != null)
+			if (line.length() > 0){
+				split = line.split(splitToken);
+				map.put(split[0], Double.parseDouble(split[1]));
+			}
+	
+		br.close();
+		
+		/* Initiate intitial queue. */
+		PriorityQueue<MarkovEntry> initQue = new PriorityQueue<MarkovEntry>(100);
+		br = new BufferedReader(new FileReader(beginProb));
+		
+		while ((line = br.readLine()) != null)
+			if (line.length() > 0){
+				split = line.split(splitToken);
+				
+				MarkovEntry me = new MarkovEntry();
+				me.str = split[0].charAt(1) + "";
+				me.prob = Double.parseDouble(split[1]);
+				initQue.add(me);
+			}
+			
+		br.close();
+		
+		/* Genrating guesses by iteration. */
+		int iterCount = 1;
+		while (m < guessnumbers){
+			System.out.println("Iteration: " + iterCount);
+			/* Deal with the priority queue. */
+			PriorityQueue<MarkovEntry> que = new PriorityQueue<MarkovEntry>(initQue);
+			
+			while (!que.isEmpty()){
+				MarkovEntry me = que.poll();
+				if (me.isEnd){
+					if (me.prob <= t_i && me.str.length() >= 4){
+						m++;
+						
+						/* Check it in the hash map. Code here. */
+						if (true){
+							hit += 2;
+						}
+						
+						if (m > guessnumbers){
+							System.out.println("Finnish.");
+							System.exit(0);
+						}
+					}
+				}
+				else{
+					char last = me.str.charAt(me.str.length()-1);
+					for (String c : printableChar){
+						String key = last + "(" + c + ")";
+						Double p = map.get(key);
+						
+						if (p != null){
+							p *= me.prob;
+							if (p > p_i)
+								que.add(c.equals("") ? new MarkovEntry(me.str + c, p, true): new MarkovEntry(me.str + c, p));
+						}
+					}
+
+				}
+			}
+			iterCount++;
+			t_i = p_i;
+			p_i = Double.max(2.0, 1.5D * guessnumbers / m);
+		}
+		System.out.println("guessnumbers: " + m);	
 	}
 	
 	/**

@@ -2,8 +2,7 @@
  * 
  */
 package test;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -16,14 +15,17 @@ public class Hello {
 	 * @param args
 	 */
 	public static void main(String[] args) throws Exception{
-		/* Test Priority Queue. */
-		PriorityQueue pq = new PriorityQueue();
-		BufferedWriter bw = new BufferedWriter(new FileWriter("test.txt"));
-		double x = 0.0000000000000003112;
-		double y = 3.112E-10;
-		System.out.println(x > y);
-		bw.write(x+"");
-		bw.close();
+		BufferedReader br = new BufferedReader(new FileReader("D:/tianya_total_index_2.txt"));
+		
+		String line;
+		
+		for (int i = 1; i < 11; i++){
+			line = br.readLine();
+			
+			System.out.println(line);
+		}
+		
+		br.close();	
 	}
 
 }
