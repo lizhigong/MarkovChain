@@ -239,7 +239,7 @@ public class MarkovChain {
 	 */
 	public void guess(long guessnumbers, String tableName) throws Exception{
 		check();	
-		/* Store the passwords in the hashmap. For now, there is no better solution. */
+		/* Store the passwords in the hashmap. For now, there is no better solution.  Code here. */
 		
 		/* Generate passwords and test in the hashmap. */
 		double p_i = 1 / guessnumbers;
@@ -333,7 +333,7 @@ public class MarkovChain {
 	 */
 	public void guess(long guessnumbers, File file) throws Exception{
 		check();	
-		/* Store the passwords in the hashmap. For now, there is no better solution. */
+		/* Store the passwords in the hashmap. For now, there is no better solution. Code here */
 		
 		/* Generate passwords and test in the hashmap. */
 		double p_i = 1 / guessnumbers;
