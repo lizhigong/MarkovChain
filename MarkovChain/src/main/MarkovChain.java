@@ -36,11 +36,13 @@ public class MarkovChain {
 									  "~","`","[","]","{","}",":","\'",";","\"",",",".","/","<",">","?","\\","|"," ",""}; 
 									  // the null string at the end is used to represent the end symbol.
 	
+	long[][] point = new long[62][2];		// 10, 100, 1000 ......
 	/* Constructor */
 	
 	public MarkovChain(){
 		begin = new HashMap<String,Integer>();
 		map = new HashMap<String,Integer>();
+		initiatePoint();
 	}
 	
 	public MarkovChain(int order){		// Now, order does not work.
@@ -52,20 +54,44 @@ public class MarkovChain {
 		training(trainingSet);
 	}
 
+	private void initiatePoint(){
+		point[0][0] = 0;
+		point[0][1] = 1;
+		int k = 1;
+		int E = 7;
+		
+		for (int i = 1; i <= 7; i++){
+			point[i][0] = i;
+			point[i][1] = point[i-1][1] * 10;
+		}
+		
+		for (int i = 7; i < point.length; i++){
+			point[i][0] = E;
+			point[i][1] = (long)(k * Math.pow(10, E));
+			k++;
+			
+			if (k == 10){
+				E++;
+				k = 1;
+			}
+		}
+	}
+	
 	/**
 	 * Training the markov method using trainingSet.
 	 * @param traningSet
 	 */
 	public void training(String trainingSet){
 		this.trainingSet = trainingSet;
-		
+		System.out.print("Training......");
+		long time = System.currentTimeMillis();
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(trainingSet));
 			
 			try {
-				String line = br.readLine();
 				String key;
-				while (line != null){
+				String line;
+				while ((line=br.readLine()) != null){
 					line = line.replaceAll(" ", "");	// Ignore spaces.
 					
 					if (line.length() < 4) 				// At least 4 characters.
@@ -90,7 +116,6 @@ public class MarkovChain {
 					/* Deal with last character and the end symbol*/
 					addtoMap(charArray[len-1] + "()",map); 				// Add End Symbol.
 					addtoMap("end*",map);
-					line = br.readLine();
 				}
 				
 				br.close();
@@ -109,10 +134,13 @@ public class MarkovChain {
 			System.out.println("File not found!");
 			e.printStackTrace();
 		} 
+
+		System.out.println("Time:" + operateTime(System.currentTimeMillis() - time));
 	}
 
 	/**
 	 * Write the guesses into file.
+	 * Finally, it is used to measure the efficiency of Markov Chain.
 	 * 
 	 * The guessing method is based on threshold search algorithm.
 	 * In the i'th iteration, it generates passwords with probabilities
@@ -125,14 +153,18 @@ public class MarkovChain {
 	 * 
 	 * @param guessnumbers, the number we want to guess.
 	 */
-	public void guess(long guessnumbers) throws Exception{
+	public void guessTest(long guessnumbers) throws Exception{
 		/* Check, because we need training first. */ 
 		check();
+		int pointer = 1;		// Indicate which point (level of guessnumber) we arrive. 
 		double p_i = 1 / guessnumbers;	// Threshold, lower bound.
 		double t_i = 1;					// Threshold, upper bound. 
 		BufferedWriter bw = new BufferedWriter(new FileWriter("guess.txt"));
 		long m = 0;		// Current guess numbers
 		HashMap<String, Double> map = new HashMap<String, Double>(10000);		// The distribution of P[X_2| X_1]. for 1-order Markov chain, the # of entries is less than 10000
+		
+		long initTime = System.currentTimeMillis();
+		System.out.print("Initiating map......");
 		/* Initiate map */
 		BufferedReader br = new BufferedReader(new FileReader(prob));
 		String line = br.readLine();
@@ -152,6 +184,12 @@ public class MarkovChain {
 		
 		br.close();
 
+		long usedTime = System.currentTimeMillis() - initTime;
+		System.out.println(operateTime(usedTime));
+		initTime = System.currentTimeMillis();
+		System.out.print("initiating map of first characters......");
+		
+		
 		/* Initiate priority queue which contains the probabilities of the first characters */
 		PriorityQueue<MarkovEntry> initQue= new PriorityQueue<MarkovEntry>(100);		// 100 is enough, there are only 95 printable characters.
 		br = new BufferedReader(new FileReader(beginProb));
@@ -165,7 +203,7 @@ public class MarkovChain {
 					System.out.println("[WRONG]: " + line);
 					System.exit(0);
 				}
-				
+
 				MarkovEntry me = new MarkovEntry();
 				
 				/* According to the format of the files, the characters are in parentheses, so we only need the charAt(1)*/
@@ -179,10 +217,18 @@ public class MarkovChain {
 		
 		br.close();
 
+		usedTime = System.currentTimeMillis() - initTime;
+		System.out.println(operateTime(usedTime));
+		
+		System.out.println("Guessing by iteration......");
 		int iterCount = 1;
+		
+		long guessInitTime = System.currentTimeMillis();		// Used in guessing, separated with other time.
+		
 		/* Generating guesses by iteration */
 		while (m < guessnumbers){
-			System.out.println("Iteration " + iterCount);
+			initTime = System.currentTimeMillis();
+			System.out.print("Iteration " + iterCount + "......");
 			/* Deal with the priority queue. */
 			PriorityQueue<MarkovEntry> que = new PriorityQueue<MarkovEntry>(initQue);		// The queue is initiated with the initQue, which contains the beginning characters.
 			
@@ -195,19 +241,31 @@ public class MarkovChain {
 				if (me.isEnd){		// This is the guess.
 					if (me.prob <= t_i && me.str.length() >=4){
 						m++;
-						bw.write(me.str);
 
-						bw.newLine();
+//						bw.write(me.str);
+//						bw.newLine();
+						
+						if (m == point[pointer][1]){
+							int y = (int)(m / Math.pow(10, point[pointer][0]));
+							String print = String.format("Generate %dE%d guesses, total time : %s" , y, point[pointer][0],operateTime(System.currentTimeMillis() - guessInitTime));
+							System.out.println(print);
+							pointer++;
+						}
 
 						if (m > guessnumbers){
-							System.out.println("Finish.");
+							System.out.print("Finish......");
+							System.out.println(operateTime(System.currentTimeMillis() - guessInitTime));
 							bw.close();
 							System.exit(0);
 						}
 					}
 				}
+				else if (me.str.length() >  30){
+					continue;
+				}
 				else{		// Generate other keys with length + 1
 					/* Get the next character and their probability from hashmap. */
+					System.out.println("\t" + que.size() + ":" + me.str + ":" + me.prob);
 					char last = me.str.charAt(me.str.length()-1);	// Last character.
 					for (String c : printableChar){		// E.g. last character is 'a', find a(*) in the hashmap.
 						String key = last + "(" + c + ")";
@@ -227,6 +285,10 @@ public class MarkovChain {
 			iterCount++;
 			t_i = p_i;
 			p_i = Double.max(2.0, 1.5D * guessnumbers / m);
+			
+			usedTime = System.currentTimeMillis() - initTime;
+			System.out.println(operateTime(usedTime));
+
 		} // WHILE m < GUESSNUMBERS
 		System.out.println("guessnumbers: " + m);
 		bw.close();
@@ -561,24 +623,54 @@ public class MarkovChain {
 			num[k++] = entry.getValue();
 		}
 	}
+
+	/**
+	 * Change the time (ms) to appropriate format.
+	 * @param time
+	 * @return
+	 */
+	private static String operateTime(long time){
+		long ms;
+		long s;
+		long min;
+		long h;
+		long day;
+		
+		ms = time % 1000;
+		s = time / 1000;
+		
+		min = s / 60;
+		s = s % 60;
+		
+		h = min / 60;
+		min = min % 60;
+		
+		day = h / 24;
+		h = h % 24;
+
+		if (day != 0)
+			return day + " day " + h + " h";
+
+		if (h != 0)
+			return h + " h " + min + " min";
+		
+		if (min != 0)
+			return min + " min " + s + " s";
+		
+		if (s != 0)
+			return s + " s " + ms + " ms";
+		
+		return ms + " ms";
+	}
 	
 	public static void main (String[] args) throws Exception{
 		MarkovChain mc = new MarkovChain();
 
-		/* Test addtoMap: WORK */
-//		HashMap<String,Integer> map = new HashMap<String,Integer>();
-//		mc.addtoMap("hello", map);
-//		mc.addtoMap("hello", map);
-//		System.out.println(map.get("hello"));
-		
 		/* Test training. */
 		mc.training("TestTraining.txt");
 		
-		/* Test printableChar */
-//		for (String x : mc.printableChar)
-//			System.out.println(x);
-		
 		/* Test guessing */
-		mc.guess(1000);
+		mc.guessTest(100000000l);
+		
 	}
 }
